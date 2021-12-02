@@ -2,7 +2,7 @@ from random import shuffle
 import time as tm
 import numpy as np
 import math
-import queue
+import Queue
 
 def random_topological_sort_recursive(dag):
   # This is basically taken from networkx's topological_sort_recursive.
@@ -72,8 +72,8 @@ def index_dag_sieve(input_spec, dag, index, bound, period_duration):
   ts = random_topological_sort_recursive(dag) 
       
 
-  ts_ff_queue = queue.Queue()
-  ts_rw_queue = queue.Queue()
+  ts_ff_queue = Queue.Queue()
+  ts_rw_queue = Queue.Queue()
           
   for i in ts[index:]:
       ts_ff_queue.put(i)

@@ -168,5 +168,5 @@ def odg_generator(n, file_name):
     with open(file_name+'.py', 'a') as f: f.write('\n')
         
       
-# print odg_generator(10)
+print odg_generator(10,"alma.py")
       

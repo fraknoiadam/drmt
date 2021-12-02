@@ -1,4 +1,5 @@
 from gurobipy import *
+import networkx
 import numpy as np
 import collections
 import importlib
@@ -264,6 +265,9 @@ if __name__ == "__main__":
 
   # Create G
   G = ScheduleDAG()
+  print(input_spec.nodes, "\n\n", input_spec.edges, "\n\n" , latency_spec)
+  networkx.DiGraph.nodes(G)
+  G.nodes()
   G.create_dag(input_spec.nodes, input_spec.edges, latency_spec)
   cpath, cplat = G.critical_path()
 
@@ -286,7 +290,8 @@ if __name__ == "__main__":
     assert(low > 0)
     assert(high > 0)
     period = int(math.ceil((low + high)/2.0))
-    print ('\nperiod =', period, ' cycles')
+    print('\n')
+    print ('period =', period, ' cycles')
     print ('{:*^80}'.format(' Scheduling DRMT '))
     solver = DrmtScheduleSolver(G, input_spec, latency_spec,\
                                 seed_rnd_sieve = True, period_duration = period, minute_limit = minute_limit)

@@ -11,17 +11,19 @@ from randomized_sieve import *
 from sieve_rotator import *
 from prmt import PrmtFineSolver
 import time
+import sys
 
 RND_SIEVE_TIME = 30
 
 class DrmtScheduleSolver:
-    def __init__(self, dag, input_spec, latency_spec, seed_rnd_sieve, period_duration, minute_limit):
+    def __init__(self, dag, input_spec, latency_spec, seed_rnd_sieve, period_duration, minute_limit, model):
         self.G = dag
         self.input_spec = input_spec
         self.latency_spec = latency_spec
         self.seed_rnd_sieve = seed_rnd_sieve
         self.period_duration = period_duration
         self.minute_limit    = minute_limit
+        self.model = model
 
     def solve(self):
         """ Returns the optimal schedule
@@ -94,9 +96,7 @@ class DrmtScheduleSolver:
         qwe = Printing()
         qwe = qwe.count
 
-        my_model = False
-
-        if my_model:
+        if self.model == 1:
           T = len(nodes)
           t = m.addVars(nodes, lb=0, ub=GRB.INFINITY, vtype=GRB.INTEGER, name="t")
           qr  = m.addVars(list(itertools.product(nodes, range(T))), vtype=GRB.BINARY, name="qr")
@@ -117,23 +117,25 @@ class DrmtScheduleSolver:
                       "constr_dag_dependencies")
           m.addConstrs((sum(math.ceil((1.0 * self.G.node[v]['key_width']) / self.input_spec.match_unit_size) * qr[v, r]\
                         for v in match_nodes)\
-                        <= self.input_spec.match_unit_limit for r in range(T)),\
+                        <= self.input_spec.match_unit_limit * any_match[r]\
+                        for r in range(T)),\
                         "constr_match_units")
           m.addConstrs((sum(self.G.node[v]['num_fields'] * qr[v, r]\
                         for v in action_nodes)\
-                        <= self.input_spec.action_fields_limit for r in range(T)),\
+                        <= self.input_spec.action_fields_limit * any_action[r]\
+                        for r in range(T)),\
                         "constr_action_fields")
-          m.addConstrs((sum(qr[v, r] for v in match_nodes) <= (len(match_nodes) * any_match[r]) \
-                        for r in range(T)),\
-                        "constr_any_match1");
-          m.addConstrs((sum(qr[v, r] for v in action_nodes) <= (len(action_nodes) * any_action[r]) \
-                        for r in range(T)),\
-                        "constr_any_action1");
+          #m.addConstrs((sum(qr[v, r] for v in match_nodes) <= (len(match_nodes) * any_match[r]) \
+          #              for r in range(T)),\
+          #              "constr_any_match1");
+          #m.addConstrs((sum(qr[v, r] for v in action_nodes) <= (len(action_nodes) * any_action[r]) \
+          #              for r in range(T)),\
+          #              "constr_any_action1");
           m.addConstr(M == sum(any_match[i] for i in range(T)), "M_constraint")
           m.addConstr(A == sum(any_action[i] for i in range(T)), "A_constraint")
           m.addConstr(P == max_(A,M), "P_constraint")
 
-        else:
+        elif self.model == 2:
           # Create variables
           # t is the start time for each DAG node in the first scheduling period
           t = m.addVars(nodes, lb=0, ub=GRB.INFINITY, vtype=GRB.INTEGER, name="t")
@@ -223,12 +225,12 @@ class DrmtScheduleSolver:
                         for r in range(T)), "constr_action_proc")
           qwe()
 
-        print(init_drmt_schedule)
-        # Seed initial values
-        if init_drmt_schedule:
-          for i in nodes:
-            pass
-            #t[i].start = init_drmt_schedule[i]
+          print(init_drmt_schedule)
+          # Seed initial values
+          if init_drmt_schedule:
+            for i in nodes:
+              pass
+              t[i].start = init_drmt_schedule[i]
 
         # Solve model
         m.setParam('TimeLimit', self.minute_limit * 60)
@@ -255,7 +257,7 @@ class DrmtScheduleSolver:
         # Construct and return schedule
         self.time_of_op = {}
         self.ops_at_time = collections.defaultdict(list)
-        if my_model:
+        if self.model == 1:
           print(P,A,M)
           for v in nodes:
             for r in range(T):
@@ -322,80 +324,86 @@ class DrmtScheduleSolver:
 
 if __name__ == "__main__":
   # Cmd line args
-  if (len(sys.argv) != 5):
+  if (len(sys.argv) != 7):
     print ("Usage: ", sys.argv[0], " <DAG file> <HW file> <latency file> <time limit in mins>")
     exit(1)
-  elif (len(sys.argv) == 5):
+  elif (len(sys.argv) == 7):
     input_file   = sys.argv[1]
     hw_file      = sys.argv[2]
     latency_file = sys.argv[3]
     minute_limit = int(sys.argv[4])
+    model = int(sys.argv[5])
+    P = int(sys.argv[6])
+  with open('results/'+input_file+'_'+latency_file+'_'+str(model)+'_'+str(P)+'.txt', 'w') as f:
+    print(input_file, hw_file, latency_file, minute_limit, model, P)
+    original_stdout = sys.stdout
+    sys.stdout = f
 
-  # Input specification
-  input_spec = importlib.import_module(input_file, "*")
-  hw_spec    = importlib.import_module(hw_file, "*")
-  latency_spec=importlib.import_module(latency_file, "*")
-  input_spec.action_fields_limit = hw_spec.action_fields_limit
-  input_spec.match_unit_limit    = hw_spec.match_unit_limit
-  input_spec.match_unit_size     = hw_spec.match_unit_size
-  input_spec.action_proc_limit   = hw_spec.action_proc_limit
-  input_spec.match_proc_limit    = hw_spec.match_proc_limit
+    # Input specification
+    input_spec = importlib.import_module(input_file, "*")
+    hw_spec    = importlib.import_module(hw_file, "*")
+    latency_spec=importlib.import_module(latency_file, "*")
+    input_spec.action_fields_limit = hw_spec.action_fields_limit
+    input_spec.match_unit_limit    = hw_spec.match_unit_limit
+    input_spec.match_unit_size     = hw_spec.match_unit_size
+    input_spec.action_proc_limit   = hw_spec.action_proc_limit
+    input_spec.match_proc_limit    = hw_spec.match_proc_limit
 
-  # Create G
-  G = ScheduleDAG()
-#  print(input_spec.nodes, "\n\n", input_spec.edges, "\n\n" , latency_spec)
-  nx.DiGraph.nodes(G)
-  G.nodes()
-  G.create_dag(input_spec.nodes, input_spec.edges, latency_spec)
-  cpath, cplat = G.critical_path()
+    # Create G
+    G = ScheduleDAG()
+  #  print(input_spec.nodes, "\n\n", input_spec.edges, "\n\n" , latency_spec)
+    nx.DiGraph.nodes(G)
+    G.nodes()
+    G.create_dag(input_spec.nodes, input_spec.edges, latency_spec)
+    cpath, cplat = G.critical_path()
 
-  print ('{:*^80}'.format(' Input DAG '))
-  tpt_upper_bound = print_problem(G, input_spec)
-  tpt_lower_bound = 0.0067/2 # Just for kicks
-  print ('\n\n')
+    print ('{:*^80}'.format(' Input DAG '))
+    tpt_upper_bound = print_problem(G, input_spec)
+    tpt_lower_bound = 0.0067/2 # Just for kicks
+    print ('\n\n')
 
-  # Try to max. throughput
-  # We do this by min. the period
-  period_lower_bound = 10#int(math.ceil((1.0) / tpt_upper_bound))
-  period_upper_bound = 10#int(math.ceil((1.0) / tpt_lower_bound))
-  period = period_upper_bound
-  last_good_solution = None
-  last_good_period   = None
-  print ('Searching between limits ', period_lower_bound, ' and ', period_upper_bound, ' cycles')
-  low = period_lower_bound
-  high = period_upper_bound
-  while (low <= high):
-    assert(low > 0)
-    assert(high > 0)
-    period = int(math.ceil((low + high)/2.0))
-    print('\n')
-    print ('period =', period, ' cycles')
-    print ('{:*^80}'.format(' Scheduling DRMT '))
-    solver = DrmtScheduleSolver(G, input_spec, latency_spec,\
-                                seed_rnd_sieve = False, period_duration = period, minute_limit = minute_limit)
-    solution = solver.solve()
-    if (solution):
-      last_good_period   = period
-      last_good_solution = solution
-      high = period - 1
-    else:
-      low  = period + 1
+    # Try to max. throughput
+    # We do this by min. the period
+    period_lower_bound = P#int(math.ceil((1.0) / tpt_upper_bound))
+    period_upper_bound = P#int(math.ceil((1.0) / tpt_lower_bound))
+    period = period_upper_bound
+    last_good_solution = None
+    last_good_period   = None
+    print ('Searching between limits ', period_lower_bound, ' and ', period_upper_bound, ' cycles')
+    low = period_lower_bound
+    high = period_upper_bound
+    while (low <= high):
+      assert(low > 0)
+      assert(high > 0)
+      period = int(math.ceil((low + high)/2.0))
+      print('\n')
+      print ('period =', period, ' cycles')
+      print ('{:*^80}'.format(' Scheduling DRMT '))
+      solver = DrmtScheduleSolver(G, input_spec, latency_spec,\
+                                  seed_rnd_sieve = True, period_duration = period, minute_limit = minute_limit, model = model)
+      solution = solver.solve()
+      if (solution):
+        last_good_period   = period
+        last_good_solution = solution
+        high = period - 1
+      else:
+        low  = period + 1
 
-  if (last_good_solution == None):
-    print ("Best throughput so far is below ", tpt_lower_bound, " packets/cycle.")
-    exit(1)
+    if (last_good_solution == None):
+      print ("Best throughput so far is below ", tpt_lower_bound, " packets/cycle.")
+      exit(1)
 
-  print ('\nBest achieved throughput = 1 packet every %d cycles' % (last_good_period))
-  print ('Schedule length (thread count) = %d cycles' % last_good_solution.length)
-  print ('Critical path length = %d cycles' % cplat)
+    print ('\nBest achieved throughput = 1 packet every %d cycles' % (last_good_period))
+    print ('Schedule length (thread count) = %d cycles' % last_good_solution.length)
+    print ('Critical path length = %d cycles' % cplat)
 
-  print ('\n\n')
+    print ('\n\n')
 
-  print ('{:*^80}'.format(' First scheduling period on one processor'))
-  print (timeline_str(last_good_solution.ops_at_time, white_space=0, timeslots_per_row=4),'\n\n')
+    print ('{:*^80}'.format(' First scheduling period on one processor'))
+    print (timeline_str(last_good_solution.ops_at_time, white_space=0, timeslots_per_row=4),'\n\n')
 
-  print ('{:*^80}'.format(' Steady state on one processor'))
-  print ('{:*^80}'.format('p[u] is packet from u scheduling periods ago'))
-  print (timeline_str(last_good_solution.ops_on_ring, white_space=0, timeslots_per_row=4), '\n\n')
+    print ('{:*^80}'.format(' Steady state on one processor'))
+    print ('{:*^80}'.format('p[u] is packet from u scheduling periods ago'))
+    print (timeline_str(last_good_solution.ops_on_ring, white_space=0, timeslots_per_row=4), '\n\n')
 
-  print_resource_usage(input_spec, last_good_solution)
+    print_resource_usage(input_spec, last_good_solution)

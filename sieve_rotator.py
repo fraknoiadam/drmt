@@ -33,7 +33,7 @@ def sieve_rotator(pipe_schedule, period_duration, dM, dA):
       while (proc_occupied[current_time%period_duration].match_slot):
         termination_counter += 1
         if (termination_counter > period_duration):
-          print("Can't find a solution in rotator, match const. violated")
+          #print("Can't find a solution in rotator, match const. violated")
           return None
         current_time += 1
 #        print ("Incurred one match no-op")
@@ -47,7 +47,7 @@ def sieve_rotator(pipe_schedule, period_duration, dM, dA):
       while (proc_occupied[current_time%period_duration].action_slot):
         termination_counter += 1
         if (termination_counter > period_duration):
-          print("Can't find a solution in rotator, action const. violated")
+          #print("Can't find a solution in rotator, action const. violated")
           return None
         current_time += 1
 #        print ("Incurred one action no-op")

@@ -166,7 +166,12 @@ def odg_generator(n, file_name):
     with open(file_name+'.py', 'a') as f: f.write('edges = ')
     with open(file_name+'.py', 'a') as f: f.write(repr(edges))
     with open(file_name+'.py', 'a') as f: f.write('\n')
-        
-      
-print odg_generator(10,"alma.py")
-      
+
+if __name__ == "__main__":
+  number_of_ODGS = 30
+  size_of_ODGS = [5 for i in range(number_of_ODGS)]
+
+  for i in range(number_of_ODGS):
+    odg_generator(size_of_ODGS[i], "odgs/test4/+"+str(i))
+  print(str(number_of_ODGS)+" ODGs generated")
+

@@ -30,7 +30,7 @@ class PrmtFineSolver:
             Maximum latency of optimal schedule
         """
         if self.seed_greedy:
-          print ('{:*^80}'.format(' Running greedy heuristic '))
+          #print ('{:*^80}'.format(' Running greedy heuristic '))
           gsolver = GreedyPrmtSolver(contract_dag(self.input_spec, self.latency_spec), self.input_spec)
           gschedule = gsolver.solve()
           # gschedule was obtained as a solution to the coarse-grained model.
@@ -43,9 +43,9 @@ class PrmtFineSolver:
               fine_grained_schedule[v.strip('TABLE') + 'ACTION'] = gschedule[v] * 2 + 1;
             else:
               assert(v.startswith('_condition') or v.endswith('ACTION')) # No match
-              fine_grained_schedule[v] = gschedule[v] * 2 + 1;    
+              fine_grained_schedule[v] = gschedule[v] * 2 + 10;
 
-        print ('{:*^80}'.format(' Running ILP solver '))
+        #print ('{:*^80}'.format(' Running ILP solver ')) # TODO
         nodes = self.G.nodes()
         match_nodes = self.G.nodes(select='match')
         action_nodes = self.G.nodes(select='action')

@@ -3,6 +3,7 @@ import numpy as np
 import collections
 import importlib
 import math
+from printing import Printing
 from schedule_dag import ScheduleDAG
 from greedy_prmt_solver import GreedyPrmtSolver
 from fine_to_coarse import contract_dag
@@ -140,14 +141,18 @@ class PrmtFineSolver:
         # from only match_proc_limit/action_proc_limit packets
         # TODO
 
+        my_timer = Printing()
+        my_timer.start()
         # Solve model
         m.optimize()
+        my_timer.stop()
 
         # Construct length of schedule
         # and usage in every time slot
         solution = Solution()
         solution.ops_at_time = collections.defaultdict(list)
         solution.length = int(length.x + 1)
+        solution.time = my_timer.result
         assert(solution.length == length.x + 1)
         for time_slot in range(solution.length):
           solution.match_units_usage[time_slot] = 0

@@ -2,6 +2,7 @@ import collections
 import itertools
 import math
 from gurobipy import GRB, Model, max_
+from printing import Printing
 
 from solution import MySolution
 
@@ -74,7 +75,10 @@ class MyILP:
 
 		# Solve model
 		m.setParam('TimeLimit', self.minute_limit * 60)
+		my_timer = Printing()
+		my_timer.start()
 		m.optimize()
+		my_timer.stop()
 		ret = m.Status
 
 		solution = MySolution()
@@ -124,5 +128,6 @@ class MyILP:
 		solution.P = int(P.x)
 		solution.A = int(A.x)
 		solution.M = int(M.x)
+		solution.time = my_timer.result
 
 		return solution

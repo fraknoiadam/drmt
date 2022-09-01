@@ -4,6 +4,7 @@ import numpy as np
 import collections
 import importlib
 import math
+from printing import Printing
 from schedule_dag import ScheduleDAG
 from printers import *
 from solution import Solution
@@ -16,7 +17,7 @@ import sys
 RND_SIEVE_TIME = 30
 
 class DrmtScheduleSolver:
-    def __init__(self, dag, input_spec, latency_spec, seed_rnd_sieve, period_duration, minute_limit, model):
+    def __init__(self, dag, input_spec, latency_spec, seed_rnd_sieve, period_duration, minute_limit, model, logToConsole = 0):
         self.G = dag
         self.input_spec = input_spec
         self.latency_spec = latency_spec
@@ -24,6 +25,7 @@ class DrmtScheduleSolver:
         self.period_duration = period_duration
         self.minute_limit    = minute_limit
         self.model = model
+        self.logToConsole = logToConsole
 
     def solve(self):
         """ Returns the optimal schedule
@@ -83,17 +85,9 @@ class DrmtScheduleSolver:
         print(Q_MAX,T,len(nodes))
 
         m = Model()
-        m.setParam("LogToConsole", 1)
-        class Printing():
-            def __init__(self):
-                self.counter = 0
-                self.time = time.time()
-            def count(self): 
-                self.counter += 1
-                print(self.counter, time.time() - self.time)
-                self.time = time.time()
+        m.setParam("LogToConsole", self.logToConsole)
 
-        qwe = Printing()
+        qwe = Printing(self.logToConsole)
         qwe = qwe.count
 
         if self.model == 1:
@@ -234,14 +228,21 @@ class DrmtScheduleSolver:
 
         # Solve model
         m.setParam('TimeLimit', self.minute_limit * 60)
+        my_timer = Printing()
+
         qwe()
+        my_timer.start()
         m.optimize()
+        my_timer.stop()
         qwe()
         ret = m.Status
 
+        solution = Solution()
+        solution.time = my_timer.result
+        solution.success = False
         if (ret == GRB.INFEASIBLE):
           print ('Infeasible')
-          return None
+          return solution
         elif ((ret == GRB.TIME_LIMIT) or (ret == GRB.INTERRUPTED)):
           if (m.SolCount == 0):
             print ('Hit time limit or interrupted, no solution found yet')
@@ -287,6 +288,8 @@ class DrmtScheduleSolver:
         solution.match_units_usage   = self.match_units_usage
         solution.match_proc_usage    = self.match_proc_usage
         solution.action_proc_usage   = self.action_proc_usage
+        solution.time = my_timer.result
+        solution.success = True
         return solution
 
     def compute_periodic_schedule(self):

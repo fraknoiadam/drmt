@@ -1,8 +1,13 @@
+import importlib
 from random import shuffle
+import sys
 import time as tm
 import numpy as np
 import math
 import Queue
+import networkx as nx
+
+from schedule_dag import ScheduleDAG
 
 def random_topological_sort_recursive(dag):
   # This is basically taken from networkx's topological_sort_recursive.
@@ -388,3 +393,37 @@ def rnd_sieve(input_spec, dag, time_limit, period_duration):
   for i in best_schedule:
     greedy_initial[i[0]] = i[1] - min_val
   return greedy_initial
+
+RND_SIEVE_TIME = 200
+
+if __name__ == "__main__":
+  # Cmd line args
+  if (len(sys.argv) != 5):
+    print ("Usage: ", sys.argv[0], " <DAG file> <HW file> <latency file> <P>")
+    exit(1)
+  elif (len(sys.argv) == 5):
+    input_file   = sys.argv[1]
+    hw_file   = sys.argv[2]
+    latency_file = sys.argv[3]
+    P = int(sys.argv[4])
+  original_stdout = sys.stdout
+    #sys.stdout = f
+
+  input_spec = importlib.import_module(input_file, "*")
+  hw_spec    = importlib.import_module(hw_file, "*")
+  latency_spec=importlib.import_module(latency_file, "*")
+  input_spec.action_fields_limit = hw_spec.action_fields_limit
+  input_spec.match_unit_limit    = hw_spec.match_unit_limit
+  input_spec.match_unit_size     = hw_spec.match_unit_size
+  input_spec.action_proc_limit   = hw_spec.action_proc_limit
+  input_spec.match_proc_limit    = hw_spec.match_proc_limit
+
+    # Create G
+  G = ScheduleDAG()
+  #  print(input_spec.nodes, "\n\n", input_spec.edges, "\n\n" , latency_spec)
+  nx.DiGraph.nodes(G)
+  G.nodes()
+  G.create_dag(input_spec.nodes, input_spec.edges, latency_spec)
+  rnd_sch = rnd_sieve(input_spec, G, RND_SIEVE_TIME, P)
+  cpath, cplat = G.critical_path()
+  print(rnd_sch)

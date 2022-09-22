@@ -18,3 +18,5 @@ class Printing():
 		self.start_time = time.time()
 	def stop(self):
 		self.result = time.time() - self.start_time
+	def get_time(self):
+		return time.time() - self.time
